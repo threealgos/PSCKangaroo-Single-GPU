@@ -1018,15 +1018,16 @@ void InitGpus()
 
         cudaDeviceProp deviceProp;
         cudaGetDeviceProperties(&deviceProp, i);
-        printf("GPU %d: %s, %.2f GB, %d CUs, cap %d.%d, PCI %d, L2 size: %d KB\r\n", 
-               i, deviceProp.name, ((float)(deviceProp.totalGlobalMem / (1024 * 1024))) / 1024.0f, 
-               deviceProp.multiProcessorCount, deviceProp.major, deviceProp.minor, 
-               deviceProp.pciBusID, deviceProp.l2CacheSize / 1024);
-        
-        if (deviceProp.major < 6)
+        printf("GPU %d: %s, %.2f GB, %d CUs, cap %d.%d, PCI %d, L2 size: %d KB\r\n",
+            i, deviceProp.name,
+            ((float)(deviceProp.totalGlobalMem / (1024 * 1024))) / 1024.0f,
+            deviceProp.multiProcessorCount, deviceProp.major, deviceProp.minor,
+            deviceProp.pciBusID, deviceProp.l2CacheSize / 1024);
+
+        // Modified compatibility check
+        if (deviceProp.major < 7 || (deviceProp.major == 7 && deviceProp.minor < 5))
         {
-            printf("GPU %d - not supported, skip\r\n", i);
-            continue;
+            printf("GPU %d - not fully supported, attempting to proceed anyway...\r\n", i);
         }
 
         cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync);
@@ -1035,12 +1036,9 @@ void InitGpus()
         GpuKangs[GpuCnt]->CudaIndex = i;
         GpuKangs[GpuCnt]->persistingL2CacheMaxSize = deviceProp.persistingL2CacheMaxSize;
         GpuKangs[GpuCnt]->mpCnt = deviceProp.multiProcessorCount;
-        GpuKangs[GpuCnt]->IsOldGpu = deviceProp.l2CacheSize < 16 * 1024 * 1024;
-        GpuKangs[GpuCnt]->GroupCnt = gGroupCnt;  // Use configurable group count
+        GpuKangs[GpuCnt]->KangCnt = BLOCK_SIZE * PNT_GROUP_CNT * deviceProp.multiProcessorCount;
         GpuCnt++;
     }
-    printf("GroupCnt: %d, Kangaroos per GPU: %d (%.1fx default)\r\n", 
-           gGroupCnt, 256 * gGroupCnt * 48, (double)gGroupCnt / 24.0);
     printf("Total GPUs for work: %d\r\n", GpuCnt);
 }
 
